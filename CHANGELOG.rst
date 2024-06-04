@@ -2,6 +2,11 @@
 Changelog for package rqt_bag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+1.1.5 (2024-05-15)
+------------------
+* Fixed button icons (backport `#159 <https://github.com/ros-visualization/rqt_bag/issues/159>`_) (`#161 <https://github.com/ros-visualization/rqt_bag/issues/161>`_)
+* Contributors: mergify[bot]
+
 1.1.4 (2022-11-07)
 ------------------
 * [Humble] Ensure data types match what PyQt expects (backport `#118 <https://github.com/ros-visualization/rqt_bag/issues/118>`_) (`#125 <https://github.com/ros-visualization/rqt_bag/issues/125>`_)
