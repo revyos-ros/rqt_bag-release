@@ -1,42 +1,38 @@
-# Software License Agreement (BSD License)
-#
 # Copyright (c) 2012, Willow Garage, Inc.
-# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# modification, are permitted provided that the following conditions are met:
 #
-#  * Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-#  * Redistributions in binary form must reproduce the above
-#    copyright notice, this list of conditions and the following
-#    disclaimer in the documentation and/or other materials provided
-#    with the distribution.
-#  * Neither the name of Willow Garage, Inc. nor the names of its
-#    contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#    * Neither the name of the Willow Garage nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#      this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
 from rclpy.time import Time
 from rclpy.duration import Duration
 
-from python_qt_binding.QtCore import qDebug, QPointF, QRectF, Qt, qWarning, Signal
+from python_qt_binding.QtCore import qDebug, QPointF, QRectF, Qt, qWarning, Slot
 from python_qt_binding.QtGui import QBrush, QCursor, QColor, QFont, \
-    QFontMetrics, QPen, QPolygonF
-from python_qt_binding.QtWidgets import QGraphicsItem
+    QFontMetrics, QPen, QPolygonF, QPalette
+from python_qt_binding.QtWidgets import QGraphicsItem, QCheckBox
 
 import bisect
 import threading
@@ -44,6 +40,22 @@ import threading
 from .index_cache_thread import IndexCacheThread
 from .plugins.raw_view import RawView
 from rqt_bag import bag_helper
+from .timeline_menu import TimelinePopupMenu
+
+
+class TopicPublishCheckBox(QCheckBox):
+
+    def __init__(self, *, size, on_clicked):
+        super().__init__()
+        self.clicked.connect(on_clicked)
+        self.setStyleSheet(
+            'QCheckBox::indicator {'
+            f'  width: {size};'
+            f'  height: {size};'
+            '}'
+        )
+        self.setMinimumSize(size, size)
+        self.resize(size, size)
 
 
 class _SelectionMode(object):
@@ -92,7 +104,6 @@ class TimelineFrame(QGraphicsItem):
         self._margin_left = 4
         self._margin_right = 20
         self._margin_bottom = 20
-        self._history_top = 30
 
         # Background Rendering
         # color of background of timeline before first message and after last
@@ -125,12 +136,15 @@ class TimelineFrame(QGraphicsItem):
         self._topic_font_height = None
         self._topic_name_sizes = None
         # minimum pixels between end of topic name and start of history
+        # or publishing box
         self._topic_name_spacing = 3
         self._topic_font_size = 10
         self._topic_font = QFont("cairo")
         self._topic_font.setPointSize(self._topic_font_size)
         self._topic_font.setBold(False)
         self._topic_vertical_padding = 4
+        # publishing box size
+        self._topic_publishing_box_size = 15
         # percentage of the horiz space that can be used for topic display
         self._topic_name_max_percent = 25.0
 
@@ -190,6 +204,11 @@ class TimelineFrame(QGraphicsItem):
         self.index_cache = {}
         self.invalidated_caches = set()
         self._index_cache_thread = IndexCacheThread(self)
+
+        # topic selected
+        # coloured differently while the popup menu is opened
+        self._highlighted_topic = None
+        self._checkbox_widgets = {}
 
     # TODO the API interface should exist entirely at the bag_timeline level.
     #     Add a "get_draw_parameters()" at the bag_timeline level to access these
@@ -313,7 +332,9 @@ class TimelineFrame(QGraphicsItem):
         area
         """
         allowed_width = self._scene_width * (self._topic_name_max_percent / 100.0)
-        allowed_width = allowed_width - self._topic_name_spacing - self._margin_left
+        allowed_width = (allowed_width
+            - self._topic_name_spacing - self._margin_left
+            - self._topic_publishing_box_size - self._topic_name_spacing)
         trimmed_return = topic_name
         if allowed_width < self._qfont_width(topic_name):
             #  We need to trim the topic
@@ -366,7 +387,8 @@ class TimelineFrame(QGraphicsItem):
                 self._topic_font_height = topic_height
 
         # Update the timeline boundries
-        new_history_left = self._margin_left + max_topic_name_width + self._topic_name_spacing
+        new_history_left = (self._margin_left + self._topic_publishing_box_size +
+            self._topic_name_spacing + max_topic_name_width + self._topic_name_spacing)
         new_history_width = self._scene_width - new_history_left - self._margin_right
         self._history_left = new_history_left
         self._history_width = new_history_width
@@ -389,7 +411,6 @@ class TimelineFrame(QGraphicsItem):
 
             y += topic_height
 
-        # new_history_bottom = max([y + h for (x, y, w, h) in self._history_bounds.values()]) - 1
         new_history_bottom = max([y + h for (_, y, _, h) in self._history_bounds.values()]) - 1
         if new_history_bottom != self._history_bottom:
             self._history_bottom = new_history_bottom
@@ -615,17 +636,52 @@ class TimelineFrame(QGraphicsItem):
     def _draw_topic_names(self, painter):
         """
         Calculate positions of existing topic names and draw them on the left, one for each row
-        :param painter: ,''QPainter''
+        :param painter: allows access to pain functions,''QPainter''
         """
-        topics = self._history_bounds.keys()
-        coords = [(self._margin_left, y + (h / 2) + (self._topic_font_height / 2))
-                  for (_, y, _, h) in self._history_bounds.values()]
-
-        for text, coords in zip([t.lstrip('/') for t in topics], coords):
-            painter.setBrush(self._default_brush)
-            painter.setPen(self._default_pen)
+        for topic, bounds in self._history_bounds.items():
+            _, y, _, h = bounds
+            highlight_color = self.scene().palette().color(QPalette.Highlight)
+            highlight_pen_color = self.scene().palette().color(QPalette.HighlightedText)
+            if topic == self._highlighted_topic:
+                painter.setBrush(QBrush(highlight_color))
+                painter.setPen(QPen(highlight_pen_color))
+                painter.drawRect(
+                    0, y,
+                    self._history_left, h)
+                painter.setBrush(QBrush(highlight_pen_color))
+            else:
+                painter.setPen(self._default_pen)
+                painter.setBrush(self._default_brush)
+            if not self._bag_timeline.is_publishing(topic):
+                painter.setBrush(QBrush(Qt.NoBrush))
             painter.setFont(self._topic_font)
-            painter.drawText(coords[0], int(coords[1]), self._trimmed_topic_name(text))
+            shown_topic_name = self._trimmed_topic_name(topic)
+            painter.drawText(
+                self._margin_left + self._topic_publishing_box_size + self._topic_name_spacing,
+                int(y + h / 2 - self._topic_font_height / 2),
+                self._qfont_width(shown_topic_name),
+                self._topic_font_height,
+                Qt.AlignVCenter,
+                shown_topic_name)
+            if topic not in self._checkbox_widgets:
+                @Slot(bool)
+                def on_clicked(state, topic=topic):
+                    if self._bag_timeline.is_publishing(topic):
+                        self._bag_timeline.stop_publishing(topic)
+                    else:
+                        self._bag_timeline.start_publishing(topic)
+
+                proxy = self.scene().addWidget(TopicPublishCheckBox(
+                    size=self._topic_publishing_box_size, on_clicked=on_clicked))
+                proxy.setParentItem(self)
+                self._checkbox_widgets[topic] = proxy
+            else:
+                proxy = self._checkbox_widgets[topic]
+            proxy.setPos(self._margin_left, y + h / 2 - self._topic_publishing_box_size / 2)
+            if proxy.widget().isChecked() and not self._bag_timeline.is_publishing(topic):
+                proxy.widget().setChecked(True)
+            elif not proxy.widget().isChecked() and self._bag_timeline.is_publishing(topic):
+                proxy.widget().setChecked(False)
 
     def _draw_time_divisions(self, painter):
         """
@@ -839,6 +895,19 @@ class TimelineFrame(QGraphicsItem):
 
         return len(topic_cache) - topic_cache_len
 
+
+    def cache_message(self, topic, t):
+        """
+        Updates the cache of message timestamps with a specific new message,
+        bypassing any need to read entries from the bag.
+        """
+        if self._start_stamp is None or self._end_stamp is None:
+            return 0
+
+        topic_cache = self.index_cache.setdefault(topic, [])
+        topic_cache.append(bag_helper.to_sec(t))
+
+
     def _find_regions(self, stamps, max_interval):
         """
         Group timestamps into regions connected by timestamps less than max_interval secs apart
@@ -959,6 +1028,14 @@ class TimelineFrame(QGraphicsItem):
             if y > topic_y and y <= topic_y + topic_h:
                 return topic
         return None
+
+    @property
+    def highlighted_topic(self):
+        return self._highlighted_topic
+
+    @highlighted_topic.setter
+    def highlighted_topic(self, topic_name):
+        self._highlighted_topic = topic_name
 
     # View port manipulation functions
     def reset_timeline(self):
@@ -1153,8 +1230,8 @@ class TimelineFrame(QGraphicsItem):
         if not self._history_left:  # TODO: need a better notion of initialized
             return
 
-        x = event.pos().x()
-        y = event.pos().y()
+        x = event.scenePos().x()
+        y = event.scenePos().y()
 
         if event.buttons() == Qt.NoButton:
             # Mouse moving
@@ -1245,3 +1322,28 @@ class TimelineFrame(QGraphicsItem):
                         self.playhead = Time(seconds=x_stamp)
                     self.scene().update()
             self._dragged_pos = event.pos()
+
+    # Overrides QGraphicsItem.mousePressEvent
+    def mousePressEvent(self, event):
+        if event.buttons() == Qt.LeftButton:
+            self.on_left_down(event)
+            event.accept()
+        elif event.buttons() == Qt.MidButton:
+            self.on_middle_down(event)
+            event.accept()
+        elif event.buttons() == Qt.RightButton:
+            topic = self.map_y_to_topic(event.scenePos().y())
+            self.highlighted_topic = topic
+            self.scene().update()
+            TimelinePopupMenu(self._bag_timeline, event, topic)
+            self.highlighted_topic = None
+            self.scene().update()
+            event.accept()
+
+    # Overrides QGraphicsItem.mouseReleaseEvent
+    def mouseReleaseEvent(self, event):
+        self.on_mouse_up(event)
+
+    # Overrides QGraphicsItem.mouseMoveEvent
+    def mouseMoveEvent(self, event):
+        self.on_mouse_move(event)

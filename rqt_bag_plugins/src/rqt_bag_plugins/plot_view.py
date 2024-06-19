@@ -180,7 +180,7 @@ class PlotWidget(QWidget):
                 start_time = Time(nanoseconds=entry.timestamp)
 
         self.bag = bag
-        (ros_message, msg_type, topic) = self.bag.deserialize_entry(entry)
+        (ros_message, msg_type) = self.bag.deserialize_entry(entry)
         self.message_tree.set_message(ros_message, msg_type)
 
         # state used by threaded resampling
@@ -252,7 +252,7 @@ class PlotWidget(QWidget):
                 if not self.resampling_active:
                     return
 
-                (ros_message, _, _) = self.bag.deserialize_entry(entry)
+                (ros_message, _) = self.bag.deserialize_entry(entry)
                 timestamp = Time(nanoseconds=entry.timestamp)
 
                 for path in self.resample_fields:
@@ -435,8 +435,8 @@ class MessageTree(QTreeWidget):
         # Remove the leading underscore for display
         label = name[1:] if name.startswith('_') else name
 
-        if hasattr(obj, '__slots__'):
-            subobjs = [(slot, getattr(obj, slot)) for slot in obj.__slots__]
+        if hasattr(obj, '_fields_and_field_types'):
+            subobjs = [(field_name, getattr(obj, field_name)) for field_name in obj.get_fields_and_field_types().keys()]
         elif type(obj) in [list, tuple]:
             len_obj = len(obj)
             if len_obj == 0:

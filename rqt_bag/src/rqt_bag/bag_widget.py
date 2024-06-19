@@ -1,44 +1,41 @@
-# Software License Agreement (BSD License)
-#
 # Copyright (c) 2012, Willow Garage, Inc.
-# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# modification, are permitted provided that the following conditions are met:
 #
-#  * Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-#  * Redistributions in binary form must reproduce the above
-#    copyright notice, this list of conditions and the following
-#    disclaimer in the documentation and/or other materials provided
-#    with the distribution.
-#  * Neither the name of Willow Garage, Inc. nor the names of its
-#    contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#    * Neither the name of the Willow Garage nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#      this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
 import os
 import time
+import math
 
 
 from ament_index_python import get_resource
 from rclpy import logging
 
 from python_qt_binding import loadUi
-from python_qt_binding.QtCore import qDebug, QFileInfo, Qt, qWarning, Signal
+from python_qt_binding.QtCore import qDebug, Qt, qWarning, Signal
 from python_qt_binding.QtGui import QIcon, QResizeEvent
 from python_qt_binding.QtWidgets import QFileDialog, QGraphicsView, QWidget
 
@@ -46,7 +43,6 @@ from rqt_bag import bag_helper
 from .bag_timeline import BagTimeline
 from .topic_selection import TopicSelection
 from .rosbag2 import Rosbag2
-import yaml
 
 
 class BagGraphicsView(QGraphicsView):
@@ -118,10 +114,7 @@ class BagWidget(QWidget):
         self.record_button.clicked[bool].connect(self._handle_record_clicked)
         self.load_button.clicked[bool].connect(self._handle_load_clicked)
         self.save_button.clicked[bool].connect(self._handle_save_clicked)
-        self.graphics_view.mousePressEvent = self._timeline.on_mouse_down
-        self.graphics_view.mouseReleaseEvent = self._timeline.on_mouse_up
-        self.graphics_view.mouseMoveEvent = self._timeline.on_mouse_move
-        self.graphics_view.wheelEvent = self._timeline.on_mousewheel
+        self.graphics_view.wheelEvent = self.on_mousewheel
         self.closeEvent = self.handle_close
         self.keyPressEvent = self.on_key_press
         # TODO when the closeEvent is properly called by ROS_GUI implement that
@@ -268,6 +261,7 @@ class BagWidget(QWidget):
             self._logger.info('Recording to %s.' % record_filename)
 
             self.load_button.setEnabled(False)
+            self.save_button.setEnabled(True)
             self._recording = True
             self._timeline.record_bag(record_filename, all_topics, selected_topics)
 
@@ -319,7 +313,7 @@ class BagWidget(QWidget):
         self.slower_button.setEnabled(True)
         self.begin_button.setEnabled(True)
         self.end_button.setEnabled(True)
-        self.save_button.setEnabled(True)
+        self.save_button.setEnabled(False)
         self.record_button.setEnabled(False)
         self._timeline.add_bag(bag)
         qDebug("Done loading '%s'" % filename.encode(errors='replace'))
@@ -338,6 +332,15 @@ class BagWidget(QWidget):
         # self clear loading filename
 
     def _handle_save_clicked(self):
+        # If we are currently recording, close the bag.
+        if self._recording:
+            self._timeline.stop_recorder()
+            self._recording = False
+            self.save_button.setEnabled(False)
+            self.load_button.setEnabled(True)
+            return
+        # TODO(Yadunund): Enable this code pathway when support for extracting regions
+        # from loaded bags is available.
         # Get the bag name to save to, prepopulating the dialog input with the current time
         proposed_filename = time.strftime('%Y-%m-%d-%H-%M-%S', time.localtime(time.time()))
         filename = \
@@ -427,3 +430,11 @@ class BagWidget(QWidget):
 
     def update_size(self):
         self._resizeEvent(QResizeEvent(self.size(), self.size()))
+
+    def on_mousewheel(self, event):
+        # scroll -> scroll the page up and down
+        # ctrl+scroll -> zoom-in or zoom out timeline
+        if event.modifiers() & Qt.ControlModifier:
+            self._timeline._timeline_frame.on_mousewheel(event)
+        else:
+            BagGraphicsView.wheelEvent(self.graphics_view, event)

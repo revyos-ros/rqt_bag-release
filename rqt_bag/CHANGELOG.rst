@@ -2,19 +2,87 @@
 Changelog for package rqt_bag
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-1.1.5 (2024-05-15)
+1.5.3 (2024-05-14)
 ------------------
-* Fixed button icons (backport `#159 <https://github.com/ros-visualization/rqt_bag/issues/159>`_) (`#161 <https://github.com/ros-visualization/rqt_bag/issues/161>`_)
+* Adapted to rosbag2_py (backport `#156 <https://github.com/ros-visualization/rqt_bag/issues/156>`_) (`#165 <https://github.com/ros-visualization/rqt_bag/issues/165>`_)
+  Adapted to rosbag2_py (`#156 <https://github.com/ros-visualization/rqt_bag/issues/156>`_)
+  * Switch to an in-built ImageQt class.
+  That's because in newer versions of PIL, they skip over
+  PyQt5 support even though it works.
+  * Update for new rosbag2_py API.
+  * Fix TopicMetadata call
+  * Avoid freeze the gui
+  * Fixed checkboes
+  * Update with the license from PIL.
+  Note that this is an OSI-approved license, even though
+  it is technically deprecated by
+  OSI: https://opensource.org/license/historical-php
+  * Only change the checkbox when needed.
+  Otherwise, we end up with endless paint() calls which
+  hammer the CPU.
+  * A few small fixes for PIL.
+  (cherry picked from commit e7879325f075c9d6749a4324618691933727574c)
+  Co-authored-by: Alejandro Hernández Cordero <ahcorde@gmail.com>
+* Fixed button icons (backport `#159 <https://github.com/ros-visualization/rqt_bag/issues/159>`_) (`#160 <https://github.com/ros-visualization/rqt_bag/issues/160>`_)
+  Fixed button icons (`#159 <https://github.com/ros-visualization/rqt_bag/issues/159>`_)
+  (cherry picked from commit 0d386692f63e35a8ec3c61dee0d70c389f89bf2d)
+  Co-authored-by: Alejandro Hernández Cordero <ahcorde@gmail.com>
 * Contributors: mergify[bot]
 
-1.1.4 (2022-11-07)
+1.5.2 (2024-03-28)
 ------------------
-* [Humble] Ensure data types match what PyQt expects (backport `#118 <https://github.com/ros-visualization/rqt_bag/issues/118>`_) (`#125 <https://github.com/ros-visualization/rqt_bag/issues/125>`_)
-* Fix toggle thumbnails button (`#117 <https://github.com/ros-visualization/rqt_bag/issues/117>`_) (`#124 <https://github.com/ros-visualization/rqt_bag/issues/124>`_)
-* [Fixes] Fix crash when no qos metadata, make scroll bar appear if needed, add gitignore (`#113 <https://github.com/ros-visualization/rqt_bag/issues/113>`_) (`#120 <https://github.com/ros-visualization/rqt_bag/issues/120>`_)
-* Contributors: mergify[bot]
+* Add in copyright tests to rqt_bag. (`#154 <https://github.com/ros-visualization/rqt_bag/issues/154>`_)
+* Add a test dependency on pytest. (`#153 <https://github.com/ros-visualization/rqt_bag/issues/153>`_)
+* Revert "Add a dependency on pytest to rqt_bag and rqt_bag_plugins. (#… (`#151 <https://github.com/ros-visualization/rqt_bag/issues/151>`_)
+* Update maintainer to myself. (`#150 <https://github.com/ros-visualization/rqt_bag/issues/150>`_)
+* Update maintainer list in package.xml files (`#149 <https://github.com/ros-visualization/rqt_bag/issues/149>`_)
+* Contributors: Chris Lalancette, Michael Jeronimo
 
-1.1.3 (2022-05-10)
+1.5.1 (2024-02-07)
+------------------
+* Add a dependency on pytest to rqt_bag and rqt_bag_plugins. (`#148 <https://github.com/ros-visualization/rqt_bag/issues/148>`_)
+* Contributors: Chris Lalancette
+
+1.5.0 (2023-06-07)
+------------------
+* [ros2] Enable Save (`#142 <https://github.com/ros-visualization/rqt_bag/issues/142>`_)
+* Call close (`#141 <https://github.com/ros-visualization/rqt_bag/issues/141>`_)
+* Contributors: Yadu
+
+1.4.1 (2023-05-11)
+------------------
+* Use default storage id (`#139 <https://github.com/ros-visualization/rqt_bag/issues/139>`_)
+* Contributors: Yadunund
+
+1.4.0 (2023-04-28)
+------------------
+
+1.3.1 (2023-04-11)
+------------------
+
+1.3.0 (2023-02-14)
+------------------
+* Use rosbag2_py API instead of direct bag parsing
+* [rolling] Update maintainers - 2022-11-07 (`#132 <https://github.com/ros-visualization/rqt_bag/issues/132>`_)
+* For get_entry_after, bump by 1 nanosecond otherwise always get the same message equal to the timestamp
+* Use rosbag2_py.reader for all message queries, remove sqlite3 direct usage
+* Cleanup for review
+* Improved logging
+* Use a rosbag2_py.Reader to get bag metadata
+* Disable reading from bag while recording - use direct caching to index for timeline
+* Contributors: Audrow Nash, Emerson Knapp
+
+1.2.1 (2022-09-13)
+------------------
+* Increase publishing checkbox size (`#122 <https://github.com/ros-visualization/rqt_bag/issues/122>`_)
+* Fix toggle thumbnails button (`#117 <https://github.com/ros-visualization/rqt_bag/issues/117>`_)
+* ensure data types match what PyQt expects (`#118 <https://github.com/ros-visualization/rqt_bag/issues/118>`_)
+* Visualize topics being published and highlight topic being selected (`#116 <https://github.com/ros-visualization/rqt_bag/issues/116>`_)
+* Be able to scroll up and down, not only zoom-in and out the timeline (`#114 <https://github.com/ros-visualization/rqt_bag/issues/114>`__)
+* [Fixes] Fix crash when no qos metadata, make scroll bar appear if needed, add gitignore (`#113 <https://github.com/ros-visualization/rqt_bag/issues/113>`_)
+* Contributors: Ivan Santiago Paunovic, Kenji Brameld
+
+1.2.0 (2022-05-10)
 ------------------
 * Fix the types being passed into QFont and QColor. (`#109 <https://github.com/ros-visualization/rqt_bag/issues/109>`_)
 * Contributors: Chris Lalancette
@@ -48,7 +116,7 @@ Changelog for package rqt_bag
 * Open the bag directory instead of a single file (`#80 <https://github.com/ros-visualization/rqt_bag/issues/80>`_)
 * Port the image_view plugin to ROS2 (`#78 <https://github.com/ros-visualization/rqt_bag/issues/78>`_)
 * Clean up widgets in plot_view layout correctly (`#69 <https://github.com/ros-visualization/rqt_bag/issues/69>`_) (`#77 <https://github.com/ros-visualization/rqt_bag/issues/77>`_)
-* Fix tuples for bisect calls (`#67 <https://github.com/ros-visualization/rqt_bag/issues/67>`_) (`#76 <https://github.com/ros-visualization/rqt_bag/issues/76>`_)
+* Fix tuples for bisect calls (`#67 <https://github.com/ros-visualization/rqt_bag/issues/67>`_) (`#76 <https://github.com/ros-visualization/rqt_bag/issues/76>`__)
 * Fix issue: no vertical scroll bar until window is resized (`#63 <https://github.com/ros-visualization/rqt_bag/issues/63>`_) (`#75 <https://github.com/ros-visualization/rqt_bag/issues/75>`_)
 * Update the basic plugins for ROS2 (`#72 <https://github.com/ros-visualization/rqt_bag/issues/72>`_)
 * Update the rosbag2 python module (`#71 <https://github.com/ros-visualization/rqt_bag/issues/71>`_)
@@ -199,8 +267,8 @@ Changelog for package rqt_bag
 * fix rendering of icons on OS X (`ros-visualization/rqt#83 <https://github.com/ros-visualization/rqt/issues/83>`_)
 * fix shutdown of plugin (`#31 <https://github.com/ros-visualization/rqt_common_plugins/issues/31>`_)
 * fix saving parts of a bag (`#96 <https://github.com/ros-visualization/rqt_common_plugins/issues/96>`_)
-* fix long topic names (`#114 <https://github.com/ros-visualization/rqt_common_plugins/issues/114>`_)
-* fix zoom behavior (`#76 <https://github.com/ros-visualization/rqt_common_plugins/issues/76>`_)
+* fix long topic names (`#114 <https://github.com/ros-visualization/rqt_common_plugins/issues/114>`__)
+* fix zoom behavior (`#76 <https://github.com/ros-visualization/rqt_common_plugins/issues/76>`__)
 
 0.2.17 (2013-07-04)
 -------------------

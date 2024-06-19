@@ -1,33 +1,29 @@
-# Software License Agreement (BSD License)
-#
 # Copyright (c) 2012, Willow Garage, Inc.
-# All rights reserved.
 #
 # Redistribution and use in source and binary forms, with or without
-# modification, are permitted provided that the following conditions
-# are met:
+# modification, are permitted provided that the following conditions are met:
 #
-#  * Redistributions of source code must retain the above copyright
-#    notice, this list of conditions and the following disclaimer.
-#  * Redistributions in binary form must reproduce the above
-#    copyright notice, this list of conditions and the following
-#    disclaimer in the documentation and/or other materials provided
-#    with the distribution.
-#  * Neither the name of Willow Garage, Inc. nor the names of its
-#    contributors may be used to endorse or promote products derived
-#    from this software without specific prior written permission.
+#    * Redistributions of source code must retain the above copyright
+#      notice, this list of conditions and the following disclaimer.
 #
-# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-# "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-# LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS
-# FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE
-# COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT,
-# INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
-# BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
-# LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER
-# CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
-# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
-# ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#    * Redistributions in binary form must reproduce the above copyright
+#      notice, this list of conditions and the following disclaimer in the
+#      documentation and/or other materials provided with the distribution.
+#
+#    * Neither the name of the Willow Garage nor the names of its
+#      contributors may be used to endorse or promote products derived from
+#      this software without specific prior written permission.
+#
+# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+# AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+# LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+# CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+# SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+# INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+# CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+# ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
 
 """Recorder subscribes to ROS messages and writes them to a bag file."""
@@ -53,6 +49,8 @@ from rosidl_runtime_py.utilities import get_message
 
 from .qos import gen_subscriber_qos_profile, get_qos_profiles_for_topic, qos_profiles_to_yaml
 from .rosbag2 import Rosbag2
+
+from rosbag2_py import get_default_storage_id, to_rclcpp_qos_vector
 
 
 class Recorder(object):
@@ -97,7 +95,7 @@ class Recorder(object):
         self._message_count = {}  # topic -> int (track number of messages recorded on each topic)
 
         self._serialization_format = 'cdr'
-        self._storage_id = 'sqlite3'
+        self._storage_id = get_default_storage_id()
         self._storage_options = rosbag2_py.StorageOptions(
             uri=filename, storage_id=self._storage_id)
         self._converter_options = rosbag2_py.ConverterOptions(
@@ -121,10 +119,11 @@ class Recorder(object):
                 qos_profiles = get_qos_profiles_for_topic(self._node, topic)
                 if qos_profiles:
                     offered_qos_profiles = qos_profiles_to_yaml(qos_profiles)
+                vector_qos = to_rclcpp_qos_vector(offered_qos_profiles, 9)
                 topic_metadata = rosbag2_py.TopicMetadata(
-                    name=topic, type=msg_type_names[0],
+                    id=0, name=topic, type=msg_type_names[0],
                     serialization_format=self._serialization_format,
-                    offered_qos_profiles=offered_qos_profiles)
+                    offered_qos_profiles=vector_qos)
                 self.rosbag_writer.create_topic(topic_metadata)
                 topic_type_map[topic] = topic_metadata
 
@@ -208,6 +207,9 @@ class Recorder(object):
         for topic in list(self._subscriber_helpers.keys()):
             self._unsubscribe(topic)
 
+        # Close the writer to create the metadata.yaml file.
+        self.rosbag_writer.close()
+
     def _should_subscribe_to(self, topic):
         if self._all:
             return True
@@ -247,7 +249,7 @@ class Recorder(object):
             poll_interval = 1.0
             while not self._stop_flag:
                 try:
-                    item = self._write_queue.get(block=False, timeout=poll_interval)
+                    item = self._write_queue.get(block=True, timeout=poll_interval)
                 except Empty:
                     continue
 
@@ -258,10 +260,7 @@ class Recorder(object):
                 topic, msg, msg_type_name, t = item
                 with self._bag_lock:
                     self.rosbag_writer.write(topic, serialize_message(msg), t.nanoseconds)
-
-                    # Update the overall duration for this bag based on the message just added
-                    duration_ns = t.nanoseconds - self._bag.start_time.nanoseconds
-                    self._bag.duration = Duration(nanoseconds=duration_ns)
+                    self._bag.set_latest_timestamp(t)
 
                 # Notify listeners that a message has been recorded
                 for listener in self._listeners:

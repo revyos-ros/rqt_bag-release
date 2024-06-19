@@ -41,11 +41,11 @@ if (
 ):
     sys.modules['PyQt5'] = None
 from PIL import Image
-from PIL.ImageQt import ImageQt
 
 from rqt_bag import TimelineCache, TimelineRenderer
 
 from rqt_bag_plugins import image_helper
+from rqt_bag_plugins.image_qt import ImageQt
 
 from python_qt_binding.QtCore import Qt
 from python_qt_binding.QtGui import QBrush, QPen, QPixmap
@@ -96,7 +96,7 @@ class ImageTimelineRenderer(TimelineRenderer):
 
         # set color to white draw rectangle over messages
         painter.setBrush(QBrush(Qt.white))
-        painter.drawRect(x, y, width, height - thumbnail_gap)
+        painter.drawRect(int(x), int(y), int(width), int(height - thumbnail_gap))
         thumbnail_width = None
 
         while True:
@@ -129,7 +129,7 @@ class ImageTimelineRenderer(TimelineRenderer):
                     QtImage = ImageQt(thumbnail_bitmap)
                     pixmap = QPixmap.fromImage(QtImage)
                     painter.drawPixmap(
-                        thumbnail_x, thumbnail_y, thumbnail_width, thumbnail_height, pixmap)
+                        int(thumbnail_x), int(thumbnail_y), int(thumbnail_width), int(thumbnail_height), pixmap)
             thumbnail_x += thumbnail_width
 
             if width == 1:
@@ -138,9 +138,9 @@ class ImageTimelineRenderer(TimelineRenderer):
         painter.setPen(QPen(Qt.black))
         painter.setBrush(QBrush(Qt.transparent))
         if width == 1:
-            painter.drawRect(x, y, thumbnail_x - x, height - thumbnail_gap - 1)
+            painter.drawRect(int(x), int(y), int(thumbnail_x - x), int(height - thumbnail_gap - 1))
         else:
-            painter.drawRect(x, y, width, height - thumbnail_gap - 1)
+            painter.drawRect(int(x), int(y), int(width), int(height - thumbnail_gap - 1))
         return True
 
     def close(self):
@@ -160,7 +160,7 @@ class ImageTimelineRenderer(TimelineRenderer):
         if not entry:
             return None, None
 
-        (ros_message, msg_type, topic) = bag.deserialize_entry(entry)
+        (ros_message, msg_type) = bag.deserialize_entry(entry)
 
         # Convert from ROS image to PIL image
         try:
