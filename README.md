@@ -1,3 +1,28 @@
+## rqt_bag (jazzy) - 1.5.4-1
+
+The packages in the `rqt_bag` repository were released into the `jazzy` distro by running `/home/z572/gits/revyos-ros/venv/bin/bloom-release -r jazzy rqt_bag --override-release-repository-push-url git@github.com:revyos-ros/rqt_bag-release.git` on `Sat, 14 Sep 2024 06:04:43 -0000`
+
+These packages were released:
+- `rqt_bag`
+- `rqt_bag_plugins`
+
+Version of package(s) in repository `rqt_bag`:
+
+- upstream repository: https://github.com/ros-visualization/rqt_bag.git
+- release repository: https://github.com/revyos-ros/rqt_bag-release.git
+- rosdistro version: `1.5.4-1`
+- old version: `1.5.3-2`
+- new version: `1.5.4-1`
+
+Versions of tools used:
+
+- bloom version: `0.12.0`
+- catkin_pkg version: `1.0.0`
+- rosdep version: `0.22.2`
+- rosdistro version: `0.9.0`
+- vcstools version: `0.1.42`
+
+
 ## rqt_bag (jazzy) - 1.5.3-2
 
 The packages in the `rqt_bag` repository were released into the `jazzy` distro by running `/home/z572/gits/revyos-ros/venv/bin/bloom-release -r jazzy rqt_bag --override-release-repository-push-url git@github.com:revyos-ros/rqt_bag-release` on `Wed, 19 Jun 2024 04:31:46 -0000`
