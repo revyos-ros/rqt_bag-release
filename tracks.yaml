@@ -1,4 +1,4 @@
-release_repo_url: git@github.com:revyos-ros/rqt_bag-release
+release_repo_url: git@github.com:revyos-ros/rqt_bag-release.git
 tracks:
   galactic:
     actions:
